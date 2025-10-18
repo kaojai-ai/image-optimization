@@ -1,3 +1,27 @@
+# KJ Image Optimization
+> Reference from https://github.com/aws-samples/image-optimization
+> Tutorial: https://aws.amazon.com/blogs/networking-and-content-delivery/image-optimization-using-amazon-cloudfront-and-aws-lambda/
+
+
+# Deploy
+> Remark: Currently, it's not supporting `ap-southeast-7` yet, so please create aws profile that set region to `ap-southeast-1` to deploy
+
+> to Macbook M1 User, we need to build sharp with cross-platform
+> to avoid below error , See also https://github.com/aws-samples/image-optimization?tab=readme-ov-file#deploy-the-solution-using-cdk, https://sharp.pixelplumbing.com/install/#npm-v10,
+```
+2025-10-18T18:55:21.457Z undefined ERROR Uncaught Exception {"errorType":"Error","errorMessage":"Cannot find package 'sharp' imported from /var/task/index.mjs","code":"ERR_MODULE_NOT_FOUND","stack":["Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'sharp' imported from /var/task/index.mjs"," at Object.getPackageJSONURL (node:internal/modules/package_json_reader:255:9)"," at packageResolve (node:internal/modules/esm/resolve:773:81)"," at moduleResolve (node:internal/modules/esm/resolve:859:18)"," at moduleResolveWithNodePath (node:internal/modules/esm/resolve:989:14)"," at defaultResolve (node:internal/modules/esm/resolve:1032:79)"," at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:783:12)"," at #cachedDefaultResolve (node:internal/modules/esm/loader:707:25)"," at ModuleLoader.resolve (node:internal/modules/esm/loader:690:38)"," at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:307:38)"," at ModuleJob._link (node:internal/modules/esm/module_job:183:49)"]}
+```
+- `npm install`
+- `cdk bootstrap`
+- `npm run build`
+- `export AWS_PROFILE=aws-sg`
+- `cdk deploy` -c S3_IMAGE_BUCKET_NAME='{YOUR_TARGET_S3}'
+
+> Also, i have to hard code S3Client in lambda to `ap-southeast-7` my S3 region since it's cross region call from lambda that deploy `ap-southeast-1` (since it's currenly don't have Lambda Webhook URL in `ap-southeast-7`)
+> See also: https://github.com/aws-samples/image-optimization/issues/74
+
+# Original README.md
+
 ## Image Optimization
 
 Images are usually the heaviest components of a web page, both in terms of bytes and number of HTTP requests. Optimizing images on your website is critical to improve your users’ experience, reduce delivery costs and enhance your position in search engine ranking. For example, Google’s Largest Contentful Paint metric in their search ranking algorithm is highly impacted by how much you optimize the images on your website. In the solution, we provide you with a simple and performant solution for image optimization using serverless components such as Amazon CloudFront, Amazon S3 and AWS Lambda.
@@ -32,7 +56,7 @@ cdk deploy
 
 When the deployment is completed within minutes, the CDK output will include the domain name of the CloudFront distribution created for image optimization (ImageDeliveryDomain =YOURDISTRIBUTION.cloudfront.net). The stack will include an S3 bucket with sample images (OriginalImagesS3Bucket = YourS3BucketWithOriginalImagesGeneratedName). To verify that it is working properly, test the following optimized image URL https:// YOURDISTRIBUTION.cloudfront.net/images/rio/1.jpeg?format=auto&width=300.
 
-The stack can be deployed with the following parameters. 
+The stack can be deployed with the following parameters.
 * **S3_IMAGE_BUCKET_NAME** Recommended for using an existing S3 bucket where your images are stored when deploying in production. Usage: cdk deploy -c S3_IMAGE_BUCKET_NAME=’YOUR_S3_BUCKET_NAME’. Without specifiying this parameter, the stack creates a new S3 bucket and sample images of Rio the dog ^^
 * **STORE_TRANSFORMED_IMAGES** Allows you to avoid temporary storage of transformed images, every image request is sent for transformation using Lambda upon cache miss in CloudFront.  Usage: cdk deploy -c STORE_TRANSFORMED_IMAGES=false. The default value of this paramter is true.
 * **S3_TRANSFORMED_IMAGE_EXPIRATION_DURATION** When STORE_TRANSFORMED_IMAGES is set to true, this paramter allows you to set the expiration time in days, of the stored transfomed images in S3. After this expiration time, objects are deleted to save storage cost. Usage: cdk deploy -c S3_TRANSFORMED_IMAGE_EXPIRATION_DURATION=10. The default value of this paramter is 90 days.
