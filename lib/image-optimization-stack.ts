@@ -27,6 +27,7 @@ var LAMBDA_MEMORY = '1500';
 var LAMBDA_TIMEOUT = '60';
 // Whether to deploy a sample website referenced in https://aws.amazon.com/blogs/networking-and-content-delivery/image-optimization-using-amazon-cloudfront-and-aws-lambda/
 var DEPLOY_SAMPLE_WEBSITE = 'false';
+var ORIGIN_PATH = 'resources/';
 
 type ImageDeliveryCacheBehaviorConfig = {
   origin: any;
@@ -44,6 +45,17 @@ type LambdaEnv = {
   maxImageSize: string,
 }
 
+function normalizeOriginPath(path?: string): string | undefined {
+  if (!path) return undefined;
+  let sanitized = path.trim();
+  if (!sanitized) return undefined;
+  if (!sanitized.startsWith('/')) sanitized = `/${sanitized}`;
+  if (sanitized.length > 1 && sanitized.endsWith('/')) {
+    sanitized = sanitized.slice(0, -1);
+  }
+  return sanitized;
+}
+
 export class ImageOptimizationStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
@@ -59,6 +71,7 @@ export class ImageOptimizationStack extends Stack {
     LAMBDA_TIMEOUT = this.node.tryGetContext('LAMBDA_TIMEOUT') || LAMBDA_TIMEOUT;
     MAX_IMAGE_SIZE = this.node.tryGetContext('MAX_IMAGE_SIZE') || MAX_IMAGE_SIZE;
     DEPLOY_SAMPLE_WEBSITE = this.node.tryGetContext('DEPLOY_SAMPLE_WEBSITE') || DEPLOY_SAMPLE_WEBSITE;
+    ORIGIN_PATH = this.node.tryGetContext('ORIGIN_PATH') || ORIGIN_PATH;
     
 
     // deploy a sample website for testing if required
@@ -169,14 +182,17 @@ export class ImageOptimizationStack extends Stack {
 
     // Create a CloudFront origin: S3 with fallback to Lambda when image needs to be transformed, otherwise with Lambda as sole origin
     var imageOrigin;
+    const imageOriginPath = normalizeOriginPath(ORIGIN_PATH);
 
     if (transformedImageBucket) {
       imageOrigin = new origins.OriginGroup({
         primaryOrigin: new origins.S3Origin(transformedImageBucket, {
           originShieldRegion: CLOUDFRONT_ORIGIN_SHIELD_REGION,
+          ...(imageOriginPath ? { originPath: imageOriginPath } : {}),
         }),
         fallbackOrigin: new origins.HttpOrigin(imageProcessingDomainName, {
           originShieldRegion: CLOUDFRONT_ORIGIN_SHIELD_REGION,
+          ...(imageOriginPath ? { originPath: imageOriginPath } : {}),
         }),
         fallbackStatusCodes: [403, 500, 503, 504],
       });
@@ -190,6 +206,7 @@ export class ImageOptimizationStack extends Stack {
     } else {
       imageOrigin = new origins.HttpOrigin(imageProcessingDomainName, {
         originShieldRegion: CLOUDFRONT_ORIGIN_SHIELD_REGION,
+        ...(imageOriginPath ? { originPath: imageOriginPath } : {}),
       });
     }
 
